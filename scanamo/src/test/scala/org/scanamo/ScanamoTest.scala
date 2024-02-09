@@ -11,6 +11,8 @@ import org.scanamo.query.*
 import org.scanamo.syntax.*
 import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType.*
 import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException
+//import software.amazon.awssdk.services.dynamodb.model.TransactionCanceledException
+
 
 class ScanamoTest extends AnyFunSpec with Matchers with NonImplicitAssertions {
   val client = LocalDynamoDB.syncClient()
@@ -740,7 +742,7 @@ class ScanamoTest extends AnyFunSpec with Matchers with NonImplicitAssertions {
         val ops1 = for {
           _ <- gremlinTable.putAll(Set(Gremlin(1, wet = false)))
           _ <- forecastTable.putAll(Set(Forecast("London", "Sun", None)))
-          _ <- ScanamoFree.transactionalWrite(
+          result <- ScanamoFree.transactionalWrite(
             List(
               TransactionalWriteAction
                 .Put(t1, Gremlin(3, wet = true)),
@@ -749,13 +751,10 @@ class ScanamoTest extends AnyFunSpec with Matchers with NonImplicitAssertions {
               TransactionalWriteAction.ConditionCheck(t1, UniqueKey(KeyEquals("number", 1)), "wet" === true)
             )
           )
-        } yield ()
+        } yield result
 
-        assertThrows[TransactionCanceledException] {
-          scanamo.exec(ops1) should equal(
-            (List(Right(Gremlin(1, wet = false))), List(Right(Forecast("London", "Sun", None))))
-          )
-        }
+        val test = scanamo.exec(ops1)
+        test shouldBe a[Left[TransactionCanceledException,_]]
 
         val ops2 = for {
           gremlins <- gremlinTable.scan()

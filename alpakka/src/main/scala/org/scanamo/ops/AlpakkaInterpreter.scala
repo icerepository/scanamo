@@ -74,7 +74,11 @@ private[scanamo] class AlpakkaInterpreter(implicit client: DynamoDbAsyncClient, 
             Either.left(e)
           }
       case TransactWriteAll(req) =>
-        run[TransactWriteItemsRequest, TransactWriteItemsResponse](JavaRequests.transactItems(req))
+        run(JavaRequests.transactItems(req))
+          .map(Either.right[TransactionCanceledException, TransactWriteItemsResponse])
+          .recover { case e: TransactionCanceledException =>
+            Either.left(e)
+          }
     }
 }
 

@@ -18,10 +18,12 @@ package org.scanamo
 
 import cats.Show
 import cats.data.NonEmptyList
-import software.amazon.awssdk.services.dynamodb.model.ConditionalCheckFailedException
+import software.amazon.awssdk.services.dynamodb.model.{ConditionalCheckFailedException, TransactionCanceledException}
 
 sealed abstract class ScanamoError
 final case class ConditionNotMet(e: ConditionalCheckFailedException) extends ScanamoError
+
+final case class TransactionCanceled(e: TransactionCanceledException) extends ScanamoError
 
 sealed abstract class DynamoReadError extends ScanamoError
 final case class NoPropertyOfType(propertyType: String, actual: DynamoValue) extends DynamoReadError
