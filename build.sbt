@@ -307,7 +307,6 @@ lazy val docs = (project in file("docs"))
   .dependsOn(scanamo % "compile->test", alpakka % "compile", refined % "compile")
 
 val publishingSettings = Seq(
-  Test / publishArtifact := false,
   scmInfo := Some(
     ScmInfo(
       url("https://github.com/icerepository/scanamo"),
