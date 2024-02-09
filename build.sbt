@@ -1,3 +1,6 @@
+import scala.collection.immutable.Seq
+
+githubTokenSource := TokenSource.GitConfig("github.token") || TokenSource.Environment("GITHUB_TOKEN")
 Global / onChangedBuildSource := ReloadOnSourceChanges
 val V = new {
   val scala212 = "2.12.18"
@@ -92,6 +95,10 @@ val commonSettings = Seq(
   startYear := Some(2019),
   homepage := Some(url("http://www.scanamo.org/")),
   licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
+  githubTokenSource := TokenSource.GitConfig("github.token") || TokenSource.Environment("GITHUB_TOKEN"),
+  githubOwner       := "icerepository",
+  githubRepository  := "scanamo",
+  resolvers ++= Seq( Resolver.githubPackages("icerepository")),
   javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
   scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
   Test / scalacOptions := {
@@ -303,8 +310,8 @@ val publishingSettings = Seq(
   Test / publishArtifact := false,
   scmInfo := Some(
     ScmInfo(
-      url("https://github.com/scanamo/scanamo"),
-      "scm:git:git@github.com:scanamo/scanamo.git"
+      url("https://github.com/icerepository/scanamo"),
+      "scm:git:git@github.com:icerepository/scanamo.git"
     )
   ),
   developers := List(
