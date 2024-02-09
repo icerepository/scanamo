@@ -103,8 +103,8 @@ class CatsInterpreter[F[_]](client: DynamoDbAsyncClient)(implicit F: Async[F]) e
           .flatMap(
             _.fold(
               {
-                case e: TransactionCanceledException    => F.delay(Left(e))
-                case t                                  => F.raiseError(t) // raise error as opposed to swallowing
+                case e: TransactionCanceledException => F.delay(Left(e))
+                case t                               => F.raiseError(t) // raise error as opposed to swallowing
               },
               a => F.delay(Right(a))
             )

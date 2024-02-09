@@ -19,7 +19,7 @@ package org.scanamo.ops
 import cats.*
 import cats.syntax.either.*
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient
-import software.amazon.awssdk.services.dynamodb.model.{ConditionalCheckFailedException, TransactionCanceledException}
+import software.amazon.awssdk.services.dynamodb.model.{ ConditionalCheckFailedException, TransactionCanceledException }
 
 /** Interpret Scanamo operations using blocking requests to DynamoDB with any transport errors or semantic errors within
   * DynamoDB thrown as exceptions.
