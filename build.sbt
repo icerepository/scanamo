@@ -1,19 +1,23 @@
+import ReleaseTransformations.*
+import sbtversionpolicy.withsbtrelease.ReleaseVersion
+
 Global / onChangedBuildSource := ReloadOnSourceChanges
 val V = new {
-  val scala212 = "2.12.18"
-  val scala213 = "2.13.8"
-  val scala3 = "3.2.0"
-  val magnolia = "1.1.6"
-  val magnoliaFor3 = "1.3.0"
-  val catsVersion = "2.9.0"
-  val catsEffectVersion = "3.4.10"
+  val scala212 = "2.12.19"
+  val scala213 = "2.13.13"
+  val scala3 = "3.3.3"
+  val magnolia = "1.1.8"
+  val magnoliaFor3 = "1.3.4"
+  val catsVersion = "2.10.0"
+  val catsEffectVersion = "3.5.4"
 }
 val scala2xVersions = Seq(V.scala212, V.scala213)
 val allCrossVersions = Seq(V.scala212, V.scala213, V.scala3)
 
-val zioVersion = "1.0.13"
+val zioVersion = "1.0.18"
 
 lazy val stdOptions = Seq(
+  "-release:8",
   "-deprecation",
   "-encoding",
   "UTF-8",
@@ -41,7 +45,6 @@ lazy val std2_12Options = Seq(
 
 lazy val std2xOptions = Seq(
   "-Xsource:3", // https://docs.scala-lang.org/scala3/guides/migration/tooling-tour.html#the-scala-213-compiler
-  "-target:jvm-1.8",
   "-language:higherKinds",
   "-language:existentials",
   "-language:implicitConversions",
@@ -64,7 +67,7 @@ lazy val scala2settings = Seq(
     case Some((2, _)) =>
       Seq(
         "org.scala-lang" % "scala-reflect" % scalaVersion.value,
-        compilerPlugin("org.typelevel" % "kind-projector" % "0.13.2" cross CrossVersion.full)
+        compilerPlugin("org.typelevel" % "kind-projector" % "0.13.3" cross CrossVersion.full)
       )
     case _ => Seq.empty
   })
@@ -87,43 +90,46 @@ lazy val macroSettings = Seq(
   })
 )
 val commonSettings = Seq(
-  organization := "org.scanamo",
-  organizationName := "Scanamo",
   startYear := Some(2019),
-  homepage := Some(url("http://www.scanamo.org/")),
-  licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
-  javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
-  scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
+  homepage := Some(url("https://www.scanamo.org/")),
   Test / scalacOptions := {
     val mainScalacOptions = scalacOptions.value
-    (if (CrossVersion.partialVersion(scalaVersion.value) == Some((2, 12)))
-       mainScalacOptions.filter(!Seq("-Ywarn-value-discard", "-Xlint").contains(_)) :+ "-Xlint:-unused,_"
+    (if (CrossVersion.partialVersion(scalaVersion.value).contains((2, 12)))
+       mainScalacOptions.filter(!Set("-Ywarn-value-discard", "-Xlint").contains(_)) :+ "-Xlint:-unused,_"
      else
        mainScalacOptions).filter(_ != "-Xfatal-warnings")
   },
   Compile / console / scalacOptions := (Test / scalacOptions).value,
   autoAPIMappings := true,
-  apiURL := Some(url("http://www.scanamo.org/latest/api/")),
+  apiURL := Some(url("https://www.scanamo.org/latest/api/")),
   dynamoDBLocalDownloadDir := file(".dynamodb-local"),
   dynamoDBLocalPort := 8042,
   Test / parallelExecution := false
 )
 
 lazy val root = (project in file("."))
-  .aggregate(scanamo, testkit, alpakka, refined, catsEffect, joda, zio, pekko)
+  .aggregate(scanamo, testkit, refined, catsEffect, joda, zio, pekko)
   .settings(
     commonSettings,
-    publishingSettings,
-    noPublishSettings,
+    publish / skip := true,
+    releaseVersion := ReleaseVersion.fromAggregatedAssessedCompatibilityWithLatestRelease().value,
+    releaseCrossBuild := true, // true if you cross-build the project for multiple Scala versions
+    releaseProcess := Seq[ReleaseStep](
+      checkSnapshotDependencies,
+      inquireVersions,
+      runClean,
+      setReleaseVersion,
+      commitReleaseVersion,
+      tagRelease,
+      setNextVersion,
+      commitNextVersion
+    ),
     startDynamoDBLocal / aggregate := false,
     dynamoDBLocalTestCleanup / aggregate := false,
     stopDynamoDBLocal / aggregate := false
   )
 
-addCommandAlias("makeMicrosite", "docs/makeMicrosite")
-addCommandAlias("publishMicrosite", "docs/publishMicrosite")
-
-val awsDynamoDB = "software.amazon.awssdk" % "dynamodb" % "2.21.26"
+val awsDynamoDB = "software.amazon.awssdk" % "dynamodb" % "2.23.21"
 
 lazy val refined = (project in file("refined"))
   .settings(
@@ -134,8 +140,8 @@ lazy val refined = (project in file("refined"))
   )
   .settings(
     libraryDependencies ++= Seq(
-      "eu.timepit"    %% "refined"   % "0.10.3",
-      "org.scalatest" %% "scalatest" % "3.2.9" % Test
+      "eu.timepit"    %% "refined"   % "0.11.1",
+      "org.scalatest" %% "scalatest" % "3.2.18" % Test
     )
   )
   .dependsOn(scanamo)
@@ -156,10 +162,10 @@ lazy val scanamo = (project in file("scanamo"))
       "org.typelevel"          %% "cats-free"          % V.catsVersion,
       // Use Joda for custom conversion example
       "org.joda"           % "joda-convert"    % "2.2.3"    % Provided,
-      "joda-time"          % "joda-time"       % "2.11.2"   % Test,
-      "org.scalatest"     %% "scalatest"       % "3.2.9"    % Test,
-      "org.scalatestplus" %% "scalacheck-1-15" % "3.2.10.0" % Test,
-      "org.scalacheck"    %% "scalacheck"      % "1.16.0"   % Test
+      "joda-time"          % "joda-time"       % "2.12.7"   % Test,
+      "org.scalatest"     %% "scalatest"       % "3.2.18"    % Test,
+      "org.scalatestplus" %% "scalacheck-1-16" % "3.2.14.0" % Test,
+      "org.scalacheck"    %% "scalacheck"      % "1.17.0"   % Test
     )
   )
   .dependsOn(testkit % "test->test")
@@ -187,9 +193,9 @@ lazy val catsEffect = (project in file("cats"))
       "org.typelevel"  %% "cats-free"   % V.catsVersion,
       "org.typelevel"  %% "cats-core"   % V.catsVersion,
       "org.typelevel"  %% "cats-effect" % V.catsEffectVersion,
-      "co.fs2"         %% "fs2-core"    % "3.6.1",
-      "org.scalatest"  %% "scalatest"   % "3.2.9"  % Test,
-      "org.scalacheck" %% "scalacheck"  % "1.16.0" % Test
+      "co.fs2"         %% "fs2-core"    % "3.10.2",
+      "org.scalatest"  %% "scalatest"   % "3.2.18"  % Test,
+      "org.scalacheck" %% "scalacheck"  % "1.17.0" % Test
     ),
     Test / fork := true,
     Compile / doc / scalacOptions += "-no-link-warnings"
@@ -211,35 +217,10 @@ lazy val zio = (project in file("zio"))
       "dev.zio"        %% "zio"              % zioVersion,
       "dev.zio"        %% "zio-streams"      % zioVersion % Provided,
       "dev.zio"        %% "zio-interop-cats" % "3.1.1.0",
-      "org.scalatest"  %% "scalatest"        % "3.2.9"    % Test,
-      "org.scalacheck" %% "scalacheck"       % "1.16.0"   % Test
+      "org.scalatest"  %% "scalatest"        % "3.2.18"    % Test,
+      "org.scalacheck" %% "scalacheck"       % "1.17.0"   % Test
     ),
     Test / fork := true,
-    Compile / doc / scalacOptions += "-no-link-warnings"
-  )
-  .settings(scala2settings)
-  .dependsOn(scanamo, testkit % "test->test")
-
-// Necessary until Alpakka uses Akka 2.6.16 or later - see https://github.com/akka/akka/pull/30375
-ThisBuild / libraryDependencySchemes += "org.scala-lang.modules" %% "scala-java8-compat" % VersionScheme.Always
-
-lazy val alpakka = (project in file("alpakka"))
-  .settings(
-    commonSettings,
-    crossScalaVersions := scala2xVersions,
-    publishingSettings,
-    name := "scanamo-alpakka"
-  )
-  .settings(
-    libraryDependencies ++= Seq(
-      awsDynamoDB,
-      "org.typelevel"      %% "cats-free"                    % V.catsVersion,
-      "com.lightbend.akka" %% "akka-stream-alpakka-dynamodb" % "2.0.2",
-      "org.scalatest"      %% "scalatest"                    % "3.2.9"  % Test,
-      "org.scalacheck"     %% "scalacheck"                   % "1.16.0" % Test
-    ),
-    Test / fork := true,
-    // unidoc can work out links to other project, but scalac can't
     Compile / doc / scalacOptions += "-no-link-warnings"
   )
   .settings(scala2settings)
@@ -256,9 +237,9 @@ lazy val pekko = (project in file("pekko"))
     libraryDependencies ++= Seq(
       awsDynamoDB,
       "org.typelevel"    %% "cats-free"                 % V.catsVersion,
-      "org.apache.pekko" %% "pekko-connectors-dynamodb" % "1.0.0",
-      "org.scalatest"    %% "scalatest"                 % "3.2.9"  % Test,
-      "org.scalacheck"   %% "scalacheck"                % "1.16.0" % Test
+      "org.apache.pekko" %% "pekko-connectors-dynamodb" % "1.0.2",
+      "org.scalatest"    %% "scalatest"                 % "3.2.18"  % Test,
+      "org.scalacheck"   %% "scalacheck"                % "1.17.0" % Test
     ),
     Test / fork := true,
     // unidoc can work out links to other project, but scalac can't
@@ -277,74 +258,29 @@ lazy val joda = (project in file("joda"))
   .settings(
     libraryDependencies ++= List(
       "org.joda"        % "joda-convert" % "2.2.3"  % Provided,
-      "joda-time"       % "joda-time"    % "2.12.5",
-      "org.scalatest"  %% "scalatest"    % "3.2.15"  % Test,
+      "joda-time"       % "joda-time"    % "2.12.7",
+      "org.scalatest"  %% "scalatest"    % "3.2.18"  % Test,
       "org.scalacheck" %% "scalacheck"   % "1.17.0" % Test
     )
   )
   .dependsOn(scanamo)
 
-lazy val docs = (project in file("docs"))
+lazy val docs = project
+  .in(file("scanamo-docs"))
   .settings(
-    commonSettings,
-    crossScalaVersions := allCrossVersions,
-    micrositeSettings,
-    noPublishSettings,
-    ghpagesNoJekyll := false,
-    git.remoteRepo := "git@github.com:scanamo/scanamo.git",
+    moduleName := "scanamo-docs",
+    mdocOut := file("scanamo-website/docs"),
     mdocVariables := Map(
-      "VERSION" -> version.value
+       "VERSION" -> version.value
     )
   )
-  .enablePlugins(MicrositesPlugin)
-  .dependsOn(scanamo % "compile->test", alpakka % "compile", refined % "compile")
+  .enablePlugins(MdocPlugin, DocusaurusPlugin)
+  .dependsOn(scanamo % "compile->test", refined % "compile")
 
 val publishingSettings = Seq(
-  Test / publishArtifact := false,
-  scmInfo := Some(
-    ScmInfo(
-      url("https://github.com/scanamo/scanamo"),
-      "scm:git:git@github.com:scanamo/scanamo.git"
-    )
-  ),
-  developers := List(
-    Developer("philwills", "Phil Wills", "", url("https://github.com/philwills")),
-    Developer(
-      "regiskuckaertz",
-      "Regis Kuckaertz",
-      "regis.kuckaertz@theguardian.com",
-      url("https://github.com/regiskuckaertz")
-    )
-  )
-)
-
-lazy val noPublishSettings = Seq(
-  publish / skip := true
-)
-
-val micrositeSettings = Seq(
-  micrositeUrl := "https://www.scanamo.org",
-  micrositeName := "Scanamo",
-  micrositeDescription := "Scanamo: simpler DynamoDB access for Scala",
-  micrositeAuthor := "Scanamo Contributors",
-  micrositeGithubOwner := "scanamo",
-  micrositeGithubRepo := "scanamo",
-  micrositeDocumentationUrl := "/latest/api",
-  micrositeDocumentationLabelDescription := "API",
-  micrositeHighlightTheme := "monokai",
-  micrositeHighlightLanguages ++= Seq("sbt"),
-  micrositeGitterChannel := false,
-  micrositeShareOnSocial := false,
-  micrositePalette := Map(
-    "brand-primary" -> "#951c55",
-    "brand-secondary" -> "#005689",
-    "brand-tertiary" -> "#00456e",
-    "gray-dark" -> "#453E46",
-    "gray" -> "#837F84",
-    "gray-light" -> "#E3E2E3",
-    "gray-lighter" -> "#F4F3F4",
-    "white-color" -> "#FFFFFF"
-  ),
-  micrositePushSiteWith := GitHub4s,
-  micrositeGithubToken := sys.env.get("GITHUB_TOKEN")
+  organization := "org.scanamo",
+  organizationName := "Scanamo",
+  scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
+  licenses := Seq(License.Apache2),
+  Test / publishArtifact := false
 )

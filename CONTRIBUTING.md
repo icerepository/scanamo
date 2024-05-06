@@ -33,20 +33,8 @@ scalafmtCheck
 scalafmtSbtCheck
 ```
 
-Contributing documentation
---------------------------
+# Publishing a new release
 
-The [website](http://www.scanamo.org) is built using 
-[sbt-microsites](https://47deg.github.io/sbt-microsites/). To check 
-documentation changes: 
- * Make sure [jekyll](https://jekyllrb.com/docs/installation/) is installed locally
- * run `makeMicrosite` from the root of SBT
- * run `jekyll serve --incremental --baseurl /` from `docs/target/site`
- * Load http://127.0.0.1:4000/
-
-Releasing
----------
-
-Creating a git tag is all that is required to trigger Travis to publish an artifact to Maven 
-Central for both Scala 2.12 and Scala 2.13 once the build is complete. It will also attempt to update
-the documentation website at http://www.scanamo.org/ with the latest scaladoc.
+This repo uses [`gha-scala-library-release-workflow`](https://github.com/guardian/gha-scala-library-release-workflow)
+to automate publishing releases (both full & preview releases) - see
+[**Making a Release**](https://github.com/guardian/gha-scala-library-release-workflow/blob/main/docs/making-a-release.md).

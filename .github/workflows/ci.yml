@@ -1,0 +1,67 @@
+name: CI
+on:
+  workflow_dispatch:
+  pull_request:
+
+  # triggering CI default branch improves caching
+  # see https://docs.github.com/en/free-pro-team@latest/actions/guides/caching-dependencies-to-speed-up-workflows#restrictions-for-accessing-a-cache
+  push:
+    branches:
+      - main
+
+jobs:
+  check:
+    strategy:
+      matrix:
+        scala-version: ["2.12.19","2.13.13","3.3.3"]
+        java-version: [ '11', '21' ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: ${{ matrix.java-version }}
+          cache: sbt
+      - name: lint
+        run: >
+          sbt ++${{ matrix.scala-version }}
+          scalafmtCheck
+          test:scalafmtCheck
+          scalafmtSbtCheck
+      - name: test with coverage
+        if: matrix.scala-version == '2.12.19'
+        run: >
+          sbt ++${{ matrix.scala-version }}
+          coverage
+          startDynamodbLocal
+          test
+          dynamodbLocalTestCleanup
+          stopDynamodbLocal
+      - name: test without coverage
+        if: matrix.scala-version == '2.13.13'
+        run: >
+          sbt ++${{ matrix.scala-version }}
+          startDynamodbLocal
+          test
+          dynamodbLocalTestCleanup
+          stopDynamodbLocal
+      - name: test without coverage
+        if: matrix.scala-version == '3.3.3'
+        run: >
+          sbt ++${{ matrix.scala-version }}
+          startDynamodbLocal
+          scanamo/test catsEffect/test joda/test
+          dynamodbLocalTestCleanup
+          stopDynamodbLocal
+      - name: cleanup
+        run: bash <(curl -s https://codecov.io/bash)
+  test_docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+      - name: test docs
+        run: sbt +doc
